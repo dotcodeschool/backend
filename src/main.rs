@@ -21,17 +21,17 @@ struct CreateRepoRequest {
 #[post("/api/v0/create-repository")]
 async fn create_repository(
     client: web::Data<Client>,
-    form: web::Form<CreateRepoRequest>,
+    json: web::Json<CreateRepoRequest>,
 ) -> impl Responder {
     let repo_name = generate_repo_id();
     let collection = client.database(DB_NAME).collection(COLLECTION_NAME);
 
     info!(
         "Creating repository `{}` using template `{}`",
-        repo_name, form.template
+        repo_name, json.template
     );
 
-    if let Err(e) = create_git_repo(&repo_name, &form.template).await {
+    if let Err(e) = create_git_repo(&repo_name, &json.template).await {
         error!("Failed to create repository on git server: {}", e);
         return HttpResponse::InternalServerError()
             .body("Failed to create repository on git server");
@@ -44,9 +44,9 @@ async fn create_repository(
 
     let repository = Repository {
         name: repo_name.clone(),
-        template: form.template.clone(),
+        template: json.template.clone(),
         relationships: vec![models::Relationship {
-            id: form.user_id.clone(),
+            id: json.user_id.clone(),
             r#type: models::DocumentType::User,
         }],
     };
@@ -62,7 +62,7 @@ async fn create_repository(
     );
     HttpResponse::Ok().body(format!(
         "Created repository `{}` using template `{}`",
-        repo_name, form.template
+        repo_name, json.template
     ))
 }
 
