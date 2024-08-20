@@ -1,10 +1,11 @@
+use crate::types::DocumentType;
 use serde::{Deserialize, Serialize};
 
 /// A repository document. This is used to store information about the owner of the repository, the template used to create the repository, and the relationships between the repository and other documents.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Repository {
-    pub name: String,
-    pub template: String,
+    pub repo_name: String,
+    pub repo_template: String,
     pub relationships: Vec<Relationship>,
 }
 
@@ -21,14 +22,6 @@ pub struct User {
 pub struct Course {
     pub name: String,
     pub relationships: Vec<Relationship>,
-}
-
-/// The type of document. This is used to identify the type of document in the relationships between documents.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DocumentType {
-    Repository,
-    User,
-    Course,
 }
 
 /// A relationship between documents. This is used to store the ID of the document and the type of document in the relationship.
