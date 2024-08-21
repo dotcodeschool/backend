@@ -1,6 +1,9 @@
 use actix_web::HttpResponse;
 
-use crate::errors::RepoCreationError;
+use crate::{
+	errors::{RepoCreationError, SubmissionCreationError},
+	types::CreateSubmissionResponse,
+};
 
 /// Constructs an HTTP response for a successful repository creation
 pub(super) fn repository_creation_success_response(
@@ -22,5 +25,20 @@ pub(super) fn handle_repo_creation_error(error: RepoCreationError) -> HttpRespon
 			HttpResponse::InternalServerError().body("Failed to communicate with git server"),
 		RepoCreationError::DatabaseError(_) =>
 			HttpResponse::InternalServerError().body("Failed to save repository to database"),
+	}
+}
+
+/// Constructs an HTTP response for a successful submission creation
+pub(super) fn submission_creation_success_response(
+	submission_reponse: CreateSubmissionResponse,
+) -> HttpResponse {
+	HttpResponse::Ok().json(submission_reponse)
+}
+
+/// Handles errors during submission creation and returns the appropriate HTTP response
+pub(super) fn handle_submission_creation_error(error: SubmissionCreationError) -> HttpResponse {
+	match error {
+		SubmissionCreationError::SubmissionCreationError(_) =>
+			HttpResponse::InternalServerError().body("Failed to create submission"),
 	}
 }
