@@ -7,11 +7,14 @@ mod utils;
 
 use actix_web::{post, web, App, HttpServer, Responder};
 use dotenv::dotenv;
-use helpers::{handle_repo_creation_error, repository_creation_success_response};
+use helpers::{
+	handle_repo_creation_error, handle_submission_creation_error,
+	repository_creation_success_response, submission_creation_success_response,
+};
 use log::info;
 use mongodb::Client;
 use types::*;
-use utils::do_create_repo;
+use utils::{do_create_repo, do_create_submission};
 
 /// Create a repository on the git server
 #[post("/api/v0/create-repository")]
@@ -22,6 +25,17 @@ async fn create_repository(
 	match do_create_repo(&client, &json).await {
 		Ok(repo_name) => repository_creation_success_response(repo_name, &json.repo_template),
 		Err(e) => handle_repo_creation_error(e),
+	}
+}
+
+#[post("/api/v0/create-submission")]
+async fn create_submission(
+	client: web::Data<Client>,
+	json: web::Json<CreateSubmissionRequest>,
+) -> impl Responder {
+	match do_create_submission(&client, &json).await {
+		Ok(submission_response) => submission_creation_success_response(submission_response),
+		Err(e) => handle_submission_creation_error(e),
 	}
 }
 
