@@ -6,10 +6,10 @@ use rand::prelude::*;
 
 use crate::{
 	constants::{COLLECTION_NAME, DB_NAME, GIT_SERVER_URL},
-	errors::RepoCreationError,
+	errors::{RepoCreationError, SubmissionCreationError},
 	models,
 	models::Repository,
-	types::{CreateRepoRequest, DocumentType},
+	types::{CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType},
 };
 
 /// Generate a repository ID
@@ -93,4 +93,16 @@ fn add_bearer_token_if_available(request: reqwest::RequestBuilder) -> reqwest::R
 			request
 		},
 	}
+}
+
+// 1. Accept a unique repo name as the request body
+// 2. Check if repo exists in the database - if yes, proceed, else return 404 not found
+// 3. Fetch the course info - specifically the test suite to run
+// 4. Generate a unique logstream_url
+// 5. Return the logsteam_url and tester_repo_url as response
+pub(super) async fn do_create_submission(
+	client: &Client,
+	json: &CreateSubmissionRequest,
+) -> Result<CreateSubmissionResponse, SubmissionCreationError> {
+	todo!()
 }
