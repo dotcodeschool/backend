@@ -13,4 +13,10 @@ pub enum RepoCreationError {
 pub enum SubmissionCreationError {
 	#[error("Submission creation failed: {0}")]
 	SubmissionCreationError(#[from] reqwest::Error),
+
+	#[error("Database operation failed: {0}")]
+	DatabaseError(#[from] mongodb::error::Error),
+
+	#[error("404 Not Found: {0}")]
+	NotFound(#[from] actix_web::error::Error),
 }

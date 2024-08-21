@@ -40,5 +40,9 @@ pub(super) fn handle_submission_creation_error(error: SubmissionCreationError) -
 	match error {
 		SubmissionCreationError::SubmissionCreationError(_) =>
 			HttpResponse::InternalServerError().body("Failed to create submission"),
+		SubmissionCreationError::DatabaseError(_) =>
+			HttpResponse::InternalServerError().body("Failed to save submission to database"),
+		SubmissionCreationError::NotFound(_) =>
+            HttpResponse::NotFound().body("404 Not Found"),
 	}
 }
