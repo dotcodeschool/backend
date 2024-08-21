@@ -21,6 +21,11 @@ pub(super) fn generate_repo_id() -> String {
 	repo_id
 }
 
+/// Generate a unique submission ID
+pub(super) fn generate_submission_id() -> String {
+	uuid::Uuid::new_v4().to_string()
+}
+
 /// Create a repository on the git server and insert it into the database
 pub(super) async fn do_create_repo(
 	client: &Client,
@@ -68,6 +73,7 @@ pub(super) async fn insert_repo_into_db(
 	let repository = Repository {
 		repo_name: repo_name.to_string(),
 		repo_template: template.to_string(),
+		tester_url: "https://github.com/dotcodeschool/rust-state-machine-tester".to_string(),
 		relationships: vec![models::Relationship {
 			id: user_id.to_string(),
 			r#type: DocumentType::User,
@@ -95,14 +101,50 @@ fn add_bearer_token_if_available(request: reqwest::RequestBuilder) -> reqwest::R
 	}
 }
 
-// 1. Accept a unique repo name as the request body
-// 2. Check if repo exists in the database - if yes, proceed, else return 404 not found
-// 3. Fetch the course info - specifically the test suite to run
-// 4. Generate a unique logstream_url
-// 5. Return the logsteam_url and tester_repo_url as response
+/// Create a submission for a repository.
+/// This will generate a unique submission ID and return the logstream and tester URL.
+/// 
+/// WARNING: WIP - This function doesn't store the submission in the database yet.
 pub(super) async fn do_create_submission(
 	client: &Client,
+	redis_uri: &str,
 	json: &CreateSubmissionRequest,
 ) -> Result<CreateSubmissionResponse, SubmissionCreationError> {
-	todo!()
+	let repo_name = &json.repo_name;
+	let commit_sha = &json.commit_sha;
+
+	info!("Creating submission for repository `{}` with commit `{}`", repo_name, commit_sha);
+
+	let repository = try_get_repo_from_db(client, repo_name).await?;
+	let tester_url = repository.tester_url.clone();
+
+	let logstream_id = generate_submission_id();
+	let logstream_url = format!("{}/{}", redis_uri, logstream_id);
+
+	info!(
+		"Successfully created submission for repository `{}` with logstream url `{}`",
+		repo_name, logstream_url
+	);
+	
+	// TODO: Store the submission in the database
+
+	Ok(CreateSubmissionResponse { logstream_url, tester_url })
+}
+
+/// Fetch a repository from the database. Fail if the repository does not exist.
+async fn try_get_repo_from_db(
+	client: &Client,
+	repo_name: &str,
+) -> Result<Repository, SubmissionCreationError> {
+    let collection = client.database(DB_NAME).collection(COLLECTION_NAME);
+    
+    let filter = mongodb::bson::doc! { "repo_name": repo_name };
+    let repository = collection.find_one(
+        filter
+    ).await?;
+    
+    match repository {
+        Some(repo) => Ok(repo),
+        None => Err(SubmissionCreationError::NotFound(actix_web::error::ErrorNotFound(format!("Repository `{}` not found", repo_name)))),
+    }
 }

@@ -9,6 +9,7 @@ use crate::types::DocumentType;
 pub struct Repository {
 	pub repo_name: String,
 	pub repo_template: String,
+	pub tester_url: String,
 	pub relationships: Vec<Relationship>,
 }
 
