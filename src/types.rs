@@ -15,3 +15,15 @@ pub struct CreateRepoRequest {
 	pub repo_template: String,
 	pub(super) user_id: String,
 }
+
+#[derive(serde::Deserialize)]
+pub struct CreateSubmissionRequest {
+	pub repo_name: String,
+	pub commit_sha: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct CreateSubmissionResponse {
+	pub logstream_url: String,
+	pub tester_repo_url: String,
+}
