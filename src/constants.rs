@@ -6,3 +6,5 @@ pub(crate) const DB_NAME: &str = "dcs-test";
 pub(super) const REPO_COLLECTION: &str = "repositories";
 /// The name of the collection that stores the submission documents
 pub(super) const SUBMISSION_COLLECTION: &str = "submissions";
+/// The name of the collection that stores the user documents
+pub(super) const USER_COLLECTION: &str = "users";

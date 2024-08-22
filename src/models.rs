@@ -1,3 +1,4 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::types::DocumentType;
@@ -40,9 +41,10 @@ pub struct Relationship {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Submission {
-    pub repo_name: String,
-    pub commit_sha: String,
-    pub logstream_id: String,
-    pub logstream_url: String,
-    pub relationships: Vec<Relationship>,
+	pub repo_name: String,
+	pub commit_sha: String,
+	pub logstream_id: String,
+	pub logstream_url: String,
+	pub relationships: Vec<Relationship>,
+	pub created_at: chrono::DateTime<Utc>,
 }

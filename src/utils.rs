@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use log::{info, warn};
-use mongodb::Client;
+use log::{error, info, warn};
+use mongodb::{bson::doc, Client};
 use rand::prelude::*;
 
 use crate::{
-	constants::{REPO_COLLECTION, DB_NAME, GIT_SERVER_URL},
+	constants::{DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, USER_COLLECTION},
 	errors::{RepoCreationError, SubmissionCreationError},
 	models,
 	models::Repository,
@@ -39,6 +39,7 @@ pub(super) async fn do_create_repo(
 
 	create_git_repo(&repo_name, &repo_template).await?;
 	insert_repo_into_db(client, &repo_name, &repo_template, &user_id).await?;
+	update_user_repo_list(client, &user_id, &repo_name).await?;
 
 	info!("Successfully created repository `{}` on git server", repo_name);
 
@@ -73,6 +74,7 @@ pub(super) async fn insert_repo_into_db(
 	let repository = Repository {
 		repo_name: repo_name.to_string(),
 		repo_template: template.to_string(),
+		// TODO: Use the correct URL based on the template
 		tester_url: "https://github.com/dotcodeschool/rust-state-machine-tester".to_string(),
 		relationships: vec![models::Relationship {
 			id: user_id.to_string(),
@@ -84,6 +86,25 @@ pub(super) async fn insert_repo_into_db(
 		.insert_one(repository)
 		.await
 		.map(|_| info!("Successfully inserted repository `{}` into database", repo_name))
+		.map_err(RepoCreationError::from)
+}
+
+/// Update the user's repository list in the database
+pub(super) async fn update_user_repo_list(
+	client: &Client,
+	user_id: &str,
+	repo_name: &str,
+) -> Result<(), RepoCreationError> {
+	let collection: mongodb::Collection<models::User> =
+		client.database(DB_NAME).collection(USER_COLLECTION);
+
+	let filter = doc! { "id": user_id };
+	let update = doc! { "$addToSet": { "repositories": repo_name } };
+
+	collection
+		.update_one(filter, update)
+		.await
+		.map(|_| info!("Successfully updated user `{}` with repository `{}`", user_id, repo_name))
 		.map_err(RepoCreationError::from)
 }
 
@@ -103,8 +124,7 @@ fn add_bearer_token_if_available(request: reqwest::RequestBuilder) -> reqwest::R
 
 /// Create a submission for a repository.
 /// This will generate a unique submission ID and return the logstream and tester URL.
-/// 
-/// WARNING: WIP - This function doesn't store the submission in the database yet.
+/// The submission will be inserted into the database.
 pub(super) async fn do_create_submission(
 	client: &Client,
 	redis_uri: &str,
@@ -115,36 +135,88 @@ pub(super) async fn do_create_submission(
 
 	info!("Creating submission for repository `{}` with commit `{}`", repo_name, commit_sha);
 
-	let repository = try_get_repo_from_db(client, repo_name).await?;
+	let repository = get_repo_from_db(client, repo_name).await?;
 	let tester_url = repository.tester_url.clone();
 
 	let logstream_id = generate_submission_id();
 	let logstream_url = format!("{}/{}", redis_uri, logstream_id);
 
+	insert_submission_into_db(
+		client,
+		repo_name.to_string(),
+		commit_sha.to_string(),
+		logstream_id.to_string(),
+		logstream_url.clone(),
+	)
+	.await?;
+
 	info!(
 		"Successfully created submission for repository `{}` with logstream url `{}`",
 		repo_name, logstream_url
 	);
-	
-	// TODO: Store the submission in the database
 
 	Ok(CreateSubmissionResponse { logstream_url, tester_url })
 }
 
 /// Fetch a repository from the database. Fail if the repository does not exist.
-async fn try_get_repo_from_db(
+async fn get_repo_from_db(
 	client: &Client,
 	repo_name: &str,
 ) -> Result<Repository, SubmissionCreationError> {
-    let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
-    
-    let filter = mongodb::bson::doc! { "repo_name": repo_name };
-    let repository = collection.find_one(
-        filter
-    ).await?;
-    
-    match repository {
-        Some(repo) => Ok(repo),
-        None => Err(SubmissionCreationError::NotFound(actix_web::error::ErrorNotFound(format!("Repository `{}` not found", repo_name)))),
-    }
+	let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
+
+	let filter = doc! { "repo_name": repo_name };
+	info!("Fetching repository `{}` from database", repo_name);
+	let repository = collection.find_one(filter).await;
+	println!("Repository: {:#?}", repository);
+
+	info!("Repository: {:?}", repository);
+
+	match repository {
+		Ok(Some(repo)) => {
+			info!("Successfully fetched repository `{}` from database", repo_name);
+			Ok(repo)
+		},
+		Ok(None) => {
+			error!("Repository `{}` not found in database", repo_name);
+			Err(SubmissionCreationError::NotFound(actix_web::error::ErrorNotFound(format!(
+				"Repository `{}` not found",
+				repo_name
+			))))
+		},
+		Err(e) => {
+			error!("Error fetching repository `{}` from database: {:?}", repo_name, e);
+			Err(SubmissionCreationError::DatabaseError(e))
+		},
+	}
+}
+
+/// Insert a submission into the database
+async fn insert_submission_into_db(
+	client: &Client,
+	repo_name: String,
+	commit_sha: String,
+	logstream_id: String,
+	logstream_url: String,
+) -> Result<(), SubmissionCreationError> {
+	let collection = client.database(DB_NAME).collection(SUBMISSION_COLLECTION);
+
+	let submission = models::Submission {
+		repo_name: repo_name.clone(),
+		commit_sha,
+		logstream_id,
+		logstream_url,
+		relationships: vec![],
+		created_at: chrono::Utc::now(),
+	};
+
+	info!("Inserting submission for repository `{}` into database", repo_name);
+
+	collection
+		.insert_one(submission)
+		.await
+		.map(|_| {
+			info!("Successfully inserted submission for repository `{}` into database", repo_name)
+		})
+		.map_err(SubmissionCreationError::from)
 }
