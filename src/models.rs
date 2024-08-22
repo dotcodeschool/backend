@@ -37,3 +37,12 @@ pub struct Relationship {
 	pub id: String,
 	pub r#type: DocumentType,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Submission {
+    pub repo_name: String,
+    pub commit_sha: String,
+    pub logstream_id: String,
+    pub logstream_url: String,
+    pub relationships: Vec<Relationship>,
+}
