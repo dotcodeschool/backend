@@ -5,7 +5,7 @@ use mongodb::Client;
 use rand::prelude::*;
 
 use crate::{
-	constants::{COLLECTION_NAME, DB_NAME, GIT_SERVER_URL},
+	constants::{REPO_COLLECTION, DB_NAME, GIT_SERVER_URL},
 	errors::{RepoCreationError, SubmissionCreationError},
 	models,
 	models::Repository,
@@ -68,7 +68,7 @@ pub(super) async fn insert_repo_into_db(
 	template: &str,
 	user_id: &str,
 ) -> Result<(), RepoCreationError> {
-	let collection = client.database(DB_NAME).collection(COLLECTION_NAME);
+	let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
 
 	let repository = Repository {
 		repo_name: repo_name.to_string(),
@@ -136,7 +136,7 @@ async fn try_get_repo_from_db(
 	client: &Client,
 	repo_name: &str,
 ) -> Result<Repository, SubmissionCreationError> {
-    let collection = client.database(DB_NAME).collection(COLLECTION_NAME);
+    let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
     
     let filter = mongodb::bson::doc! { "repo_name": repo_name };
     let repository = collection.find_one(
