@@ -11,9 +11,6 @@ pub enum RepoCreationError {
 
 #[derive(Error, Debug)]
 pub enum SubmissionCreationError {
-	#[error("Submission creation failed: {0}")]
-	SubmissionCreationError(#[from] reqwest::Error),
-
 	#[error("Database operation failed: {0}")]
 	DatabaseError(#[from] mongodb::error::Error),
 
