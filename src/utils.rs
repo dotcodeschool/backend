@@ -168,7 +168,6 @@ async fn get_repo_from_db(
 	let filter = doc! { "repo_name": repo_name };
 	info!("Fetching repository `{}` from database", repo_name);
 	let repository = collection.find_one(filter).await;
-	println!("Repository: {:#?}", repository);
 
 	info!("Repository: {:?}", repository);
 
