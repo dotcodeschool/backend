@@ -128,10 +128,12 @@ fn add_bearer_token_if_available(request: reqwest::RequestBuilder) -> reqwest::R
 pub(super) async fn do_create_submission(
 	client: &Client,
 	redis_uri: &str,
+	ws_url: &str,
 	json: &CreateSubmissionRequest,
 ) -> Result<CreateSubmissionResponse, SubmissionCreationError> {
 	let repo_name = &json.repo_name;
 	let commit_sha = &json.commit_sha;
+	let ws_url = ws_url.to_string();
 
 	info!("Creating submission for repository `{}` with commit `{}`", repo_name, commit_sha);
 
@@ -155,7 +157,7 @@ pub(super) async fn do_create_submission(
 		repo_name, logstream_url
 	);
 
-	Ok(CreateSubmissionResponse { logstream_url, tester_url })
+	Ok(CreateSubmissionResponse { logstream_id, logstream_url, ws_url, tester_url })
 }
 
 /// Fetch a repository from the database. Fail if the repository does not exist.

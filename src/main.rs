@@ -33,7 +33,7 @@ async fn create_submission(
 	data: web::Data<AppState>,
 	json: web::Json<CreateSubmissionRequest>,
 ) -> impl Responder {
-	match do_create_submission(&data.client, &data.redis_uri, &json).await {
+	match do_create_submission(&data.client, &data.redis_uri, &data.ws_url, &json).await {
 		Ok(submission_response) => submission_creation_success_response(submission_response),
 		Err(e) => handle_submission_creation_error(e),
 	}
@@ -42,6 +42,7 @@ async fn create_submission(
 pub struct AppState {
 	client: Client,
 	redis_uri: String,
+	ws_url: String,
 }
 
 #[actix_web::main]
@@ -51,6 +52,7 @@ async fn main() -> std::io::Result<()> {
 
 	let uri = std::env::var("MONGODB_URI").expect("MONGODB_URI must be set");
 	let redis_uri = std::env::var("REDIS_URI").expect("REDIS_URI must be set");
+	let ws_url = std::env::var("WS_URL").expect("WS_URL must be set");
 
 	let client = Client::with_uri_str(&uri).await.expect("Failed to connect to MongoDB");
 
@@ -64,6 +66,7 @@ async fn main() -> std::io::Result<()> {
 			.app_data(web::Data::new(AppState {
 				client: client.clone(),
 				redis_uri: redis_uri.clone(),
+				ws_url: ws_url.clone(),
 			}))
 			.service(create_repository)
 			.service(create_submission)

@@ -25,5 +25,7 @@ pub struct CreateSubmissionRequest {
 #[derive(serde::Serialize)]
 pub struct CreateSubmissionResponse {
 	pub logstream_url: String,
+	pub logstream_id: String,
+	pub ws_url: String,
 	pub tester_url: String,
 }
