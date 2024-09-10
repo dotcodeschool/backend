@@ -7,6 +7,12 @@ pub enum RepoCreationError {
 
 	#[error("Database operation failed: {0}")]
 	DatabaseError(#[from] mongodb::error::Error),
+
+	#[error("Invalid object id: {0}")]
+	InvalidObjectId(#[from] mongodb::bson::oid::Error),
+
+	#[error("Insertion error: {0}")]
+	InsertionError(String),
 }
 
 #[derive(Error, Debug)]

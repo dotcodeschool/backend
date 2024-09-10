@@ -25,6 +25,10 @@ pub(super) fn handle_repo_creation_error(error: RepoCreationError) -> HttpRespon
 			HttpResponse::InternalServerError().body("Failed to communicate with git server"),
 		RepoCreationError::DatabaseError(_) =>
 			HttpResponse::InternalServerError().body("Failed to save repository to database"),
+		RepoCreationError::InvalidObjectId(_) =>
+			HttpResponse::InternalServerError().body("Invalid object id"),
+		RepoCreationError::InsertionError(_) =>
+			HttpResponse::InternalServerError().body("Failed to insert repository into database"),
 	}
 }
 
