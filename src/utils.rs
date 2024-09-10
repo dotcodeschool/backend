@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use log::{error, info, warn};
-use mongodb::{bson::doc, Client};
+use mongodb::{
+	bson::{doc, oid::ObjectId},
+	Client,
+};
 use rand::prelude::*;
 
 use crate::{
@@ -38,8 +41,8 @@ pub(super) async fn do_create_repo(
 	info!("Creating repository `{}` using template `{}`", repo_name, &repo_template);
 
 	create_git_repo(&repo_name, &repo_template).await?;
-	insert_repo_into_db(client, &repo_name, &repo_template, &user_id).await?;
-	update_user_repo_list(client, &user_id, &repo_name).await?;
+	let repo_id = insert_repo_into_db(client, &repo_name, &repo_template, &user_id).await?;
+	update_user_repo_list(client, &user_id, repo_id).await?;
 
 	info!("Successfully created repository `{}` on git server", repo_name);
 
@@ -68,7 +71,7 @@ pub(super) async fn insert_repo_into_db(
 	repo_name: &str,
 	template: &str,
 	user_id: &str,
-) -> Result<(), RepoCreationError> {
+) -> Result<mongodb::bson::oid::ObjectId, RepoCreationError> {
 	let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
 
 	let repository = Repository {
@@ -82,29 +85,35 @@ pub(super) async fn insert_repo_into_db(
 		}],
 	};
 
-	collection
-		.insert_one(repository)
-		.await
-		.map(|_| info!("Successfully inserted repository `{}` into database", repo_name))
-		.map_err(RepoCreationError::from)
+	let result = collection.insert_one(repository).await?;
+
+	result.inserted_id.as_object_id().ok_or_else(|| {
+		error!("Failed to get ObjectId after inserting repository `{}` into database", repo_name);
+		RepoCreationError::InsertionError("Failed to get ObjectId after insertion".into())
+	})
 }
 
 /// Update the user's repository list in the database
 pub(super) async fn update_user_repo_list(
 	client: &Client,
 	user_id: &str,
-	repo_name: &str,
+	repo_id: ObjectId,
 ) -> Result<(), RepoCreationError> {
 	let collection: mongodb::Collection<models::User> =
 		client.database(DB_NAME).collection(USER_COLLECTION);
 
-	let filter = doc! { "id": user_id };
-	let update = doc! { "$addToSet": { "repositories": repo_name } };
+	let user_object_id = ObjectId::parse_str(user_id).map_err(|e| {
+		error!("Invalid ObjectId: {}", user_id);
+		RepoCreationError::InvalidObjectId(e)
+	})?;
+
+	let filter = doc! { "_id": user_object_id };
+	let update = doc! { "$addToSet": { "relationships.repositories.data": { "id": repo_id, "type": "repositories" }} };
 
 	collection
 		.update_one(filter, update)
 		.await
-		.map(|_| info!("Successfully updated user `{}` with repository `{}`", user_id, repo_name))
+		.map(|_| info!("Successfully updated user `{}` with repository `{}`", user_id, repo_id))
 		.map_err(RepoCreationError::from)
 }
 
