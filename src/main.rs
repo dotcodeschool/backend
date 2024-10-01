@@ -28,17 +28,6 @@ async fn create_repository_v0(
 	}
 }
 
-#[post("/submission")]
-async fn create_submission_v0(
-	data: web::Data<AppState>,
-	json: web::Json<CreateSubmissionRequest>,
-) -> impl Responder {
-	match do_create_submission(&data.client, &data.redis_uri, &data.ws_url, &json).await {
-		Ok(submission_response) => submission_creation_success_response(submission_response),
-		Err(e) => handle_db_error(e),
-	}
-}
-
 #[get("/repository/{repo_name}")]
 async fn get_repository_v0(
 	data: web::Data<AppState>,
@@ -46,6 +35,17 @@ async fn get_repository_v0(
 ) -> impl Responder {
 	match get_repo_from_db(&data.client, repo_name.as_str()).await {
 		Ok(repository) => get_repository_success_response(repository),
+		Err(e) => handle_db_error(e),
+	}
+}
+
+#[post("/submission")]
+async fn create_submission_v0(
+	data: web::Data<AppState>,
+	json: web::Json<CreateSubmissionRequest>,
+) -> impl Responder {
+	match do_create_submission(&data.client, &data.redis_uri, &data.ws_url, &json).await {
+		Ok(submission_response) => submission_creation_success_response(submission_response),
 		Err(e) => handle_db_error(e),
 	}
 }
