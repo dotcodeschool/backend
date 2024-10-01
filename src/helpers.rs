@@ -18,22 +18,17 @@ pub(super) fn repository_creation_success_response(
 /// Handles errors during repository creation and returns the appropriate HTTP response
 pub(super) fn handle_repo_creation_error(error: RepoCreationError) -> HttpResponse {
 	match error {
-		RepoCreationError::GitServerError(_) => {
-			HttpResponse::InternalServerError().body("Failed to communicate with git server")
-		},
-		RepoCreationError::DatabaseError(_) => {
-			HttpResponse::InternalServerError().body("Failed to save repository to database")
-		},
-		RepoCreationError::InvalidObjectId(_) => {
-			HttpResponse::InternalServerError().body("Invalid object id")
-		},
-		RepoCreationError::InsertionError(_) => {
-			HttpResponse::InternalServerError().body("Failed to insert repository into database")
-		},
+		RepoCreationError::GitServerError(_) =>
+			HttpResponse::InternalServerError().body("Failed to communicate with git server"),
+		RepoCreationError::DatabaseError(_) =>
+			HttpResponse::InternalServerError().body("Failed to save repository to database"),
+		RepoCreationError::InvalidObjectId(_) =>
+			HttpResponse::InternalServerError().body("Invalid object id"),
+		RepoCreationError::InsertionError(_) =>
+			HttpResponse::InternalServerError().body("Failed to insert repository into database"),
 		RepoCreationError::NotFound(_) => HttpResponse::NotFound().body("404 Not Found"),
-		RepoCreationError::InternalServerError(_) => {
-			HttpResponse::InternalServerError().body("500 Internal Server Error")
-		},
+		RepoCreationError::InternalServerError(_) =>
+			HttpResponse::InternalServerError().body("500 Internal Server Error"),
 	}
 }
 
@@ -47,9 +42,8 @@ pub(super) fn submission_creation_success_response(
 /// Handles errors during submission creation and returns the appropriate HTTP response
 pub(super) fn handle_db_error(error: DbError) -> HttpResponse {
 	match error {
-		DbError::DatabaseError(_) => {
-			HttpResponse::InternalServerError().body("Failed to save submission to database")
-		},
+		DbError::DatabaseError(_) =>
+			HttpResponse::InternalServerError().body("Failed to save submission to database"),
 		DbError::NotFound(_) => HttpResponse::NotFound().body("404 Not Found"),
 	}
 }
