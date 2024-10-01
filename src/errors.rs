@@ -13,10 +13,16 @@ pub enum RepoCreationError {
 
 	#[error("Insertion error: {0}")]
 	InsertionError(String),
+
+	#[error("404 Not Found: {0}")]
+	NotFound(String),
+
+	#[error("500 Internal Server Error: {0}")]
+	InternalServerError(String),
 }
 
 #[derive(Error, Debug)]
-pub enum SubmissionCreationError {
+pub enum DbError {
 	#[error("Database operation failed: {0}")]
 	DatabaseError(#[from] mongodb::error::Error),
 

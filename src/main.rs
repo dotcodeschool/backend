@@ -5,20 +5,20 @@ mod models;
 mod types;
 mod utils;
 
-use actix_web::{post, web, App, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpServer, Responder};
 use dotenv::dotenv;
 use helpers::{
-	handle_repo_creation_error, handle_submission_creation_error,
+	get_repository_success_response, handle_db_error, handle_repo_creation_error,
 	repository_creation_success_response, submission_creation_success_response,
 };
 use log::info;
 use mongodb::Client;
 use types::*;
-use utils::{do_create_repo, do_create_submission};
+use utils::{do_create_repo, do_create_submission, get_repo_from_db};
 
 /// Create a repository on the git server
-#[post("/api/v0/create-repository")]
-async fn create_repository(
+#[post("/repository")]
+async fn create_repository_v0(
 	data: web::Data<AppState>,
 	json: web::Json<CreateRepoRequest>,
 ) -> impl Responder {
@@ -28,14 +28,25 @@ async fn create_repository(
 	}
 }
 
-#[post("/api/v0/create-submission")]
-async fn create_submission(
+#[post("/submission")]
+async fn create_submission_v0(
 	data: web::Data<AppState>,
 	json: web::Json<CreateSubmissionRequest>,
 ) -> impl Responder {
 	match do_create_submission(&data.client, &data.redis_uri, &data.ws_url, &json).await {
 		Ok(submission_response) => submission_creation_success_response(submission_response),
-		Err(e) => handle_submission_creation_error(e),
+		Err(e) => handle_db_error(e),
+	}
+}
+
+#[get("/repository/{repo_name}")]
+async fn get_repository_v0(
+	data: web::Data<AppState>,
+	repo_name: web::Path<String>,
+) -> impl Responder {
+	match get_repo_from_db(&data.client, repo_name.as_str()).await {
+		Ok(repository) => get_repository_success_response(repository),
+		Err(e) => handle_db_error(e),
 	}
 }
 
@@ -68,8 +79,12 @@ async fn main() -> std::io::Result<()> {
 				redis_uri: redis_uri.clone(),
 				ws_url: ws_url.clone(),
 			}))
-			.service(create_repository)
-			.service(create_submission)
+			.service(
+				web::scope("/api/v0")
+					.service(create_repository_v0)
+					.service(create_submission_v0)
+					.service(get_repository_v0),
+			)
 	})
 	.bind(&bind_address)
 	.unwrap_or_else(|_| panic!("Failed to bind to {}", bind_address))

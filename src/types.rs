@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 
 /// The type of document. This is used to identify the type of document in the relationships between
 /// documents.
@@ -10,10 +11,28 @@ pub enum DocumentType {
 	Course,
 }
 
+/// Expected activity frequency for a repository. This is used to determine how often the user wants
+/// to practice.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Display)]
+#[serde(rename_all = "snake_case")]
+pub enum ExpectedPracticeFrequency {
+	EveryDay,
+	OnceAWeek,
+	OnceAMonth,
+}
+
 #[derive(serde::Deserialize)]
 pub struct CreateRepoRequest {
 	pub repo_template: String,
 	pub(super) user_id: String,
+	pub expected_practice_frequency: ExpectedPracticeFrequency,
+	pub is_reminder_enabled: bool,
+}
+
+#[derive(serde::Serialize)]
+pub struct CreateRepoResponse {
+	pub repo_name: String,
+	pub repo_template: String,
 }
 
 #[derive(serde::Deserialize)]

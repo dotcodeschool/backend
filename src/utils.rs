@@ -9,10 +9,10 @@ use rand::prelude::*;
 
 use crate::{
 	constants::{DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, USER_COLLECTION},
-	errors::{RepoCreationError, SubmissionCreationError},
-	models,
-	models::Repository,
+	errors::{DbError, RepoCreationError},
+	models::{self, Repository},
 	types::{CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType},
+	ExpectedPracticeFrequency,
 };
 
 /// Generate a repository ID
@@ -37,11 +37,25 @@ pub(super) async fn do_create_repo(
 	let repo_name = generate_repo_id();
 	let repo_template = json.repo_template.clone();
 	let user_id = json.user_id.clone();
+	let user_id = ObjectId::parse_str(&user_id).map_err(|e| {
+		error!("Invalid ObjectId: {}", user_id);
+		RepoCreationError::InvalidObjectId(e)
+	})?;
+	let expected_practice_frequency = json.expected_practice_frequency.clone();
+	let is_reminder_enabled = json.is_reminder_enabled;
 
-	info!("Creating repository `{}` using template `{}`", repo_name, &repo_template);
+	info!("Creating repository `{}` using template `{}` with expected practice frequency `{}` and reminders `{}`", repo_name, &repo_template, &expected_practice_frequency, &is_reminder_enabled);
 
 	create_git_repo(&repo_name, &repo_template).await?;
-	let repo_id = insert_repo_into_db(client, &repo_name, &repo_template, &user_id).await?;
+	let repo_id = insert_repo_into_db(
+		client,
+		&repo_name,
+		&repo_template,
+		&user_id,
+		expected_practice_frequency,
+		is_reminder_enabled,
+	)
+	.await?;
 	update_user_repo_list(client, &user_id, repo_id).await?;
 
 	info!("Successfully created repository `{}` on git server", repo_name);
@@ -70,19 +84,31 @@ pub(super) async fn insert_repo_into_db(
 	client: &Client,
 	repo_name: &str,
 	template: &str,
-	user_id: &str,
+	user_id: &ObjectId,
+	expected_practice_frequency: ExpectedPracticeFrequency,
+	is_reminder_enabled: bool,
 ) -> Result<mongodb::bson::oid::ObjectId, RepoCreationError> {
 	let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
+	let course_id = get_course_id_by_slug(client, template).await?;
+
+	let mut relationships = HashMap::new();
+	relationships.insert(
+		"user".to_string(),
+		models::Relationship { id: *user_id, r#type: DocumentType::User },
+	);
+	relationships.insert(
+		"course".to_string(),
+		models::Relationship { id: course_id, r#type: DocumentType::Course },
+	);
 
 	let repository = Repository {
 		repo_name: repo_name.to_string(),
 		repo_template: template.to_string(),
 		// TODO: Use the correct URL based on the template
 		tester_url: "https://github.com/dotcodeschool/rust-state-machine-tester".to_string(),
-		relationships: vec![models::Relationship {
-			id: user_id.to_string(),
-			r#type: DocumentType::User,
-		}],
+		relationships,
+		expected_practice_frequency,
+		is_reminder_enabled,
 	};
 
 	let result = collection.insert_one(repository).await?;
@@ -93,21 +119,44 @@ pub(super) async fn insert_repo_into_db(
 	})
 }
 
+/// Get the course ID using the course slug
+pub(super) async fn get_course_id_by_slug(
+	client: &Client,
+	slug: &str,
+) -> Result<ObjectId, RepoCreationError> {
+	let collection = client.database(DB_NAME).collection("courses");
+
+	let filter = doc! { "slug": slug };
+	let course = collection.find_one(filter).await?;
+
+	match course {
+		Some(course) => {
+			let course: models::Course = match mongodb::bson::de::from_document(course) {
+				Ok(course) => course,
+				Err(e) => {
+					error!("Failed to deserialize course: {}", e);
+					return Err(RepoCreationError::InternalServerError(e.to_string()));
+				},
+			};
+			Ok(course.id)
+		},
+		None => {
+			warn!("Course with slug `{}` not found", slug);
+			Err(RepoCreationError::NotFound(slug.to_string()))
+		},
+	}
+}
+
 /// Update the user's repository list in the database
 pub(super) async fn update_user_repo_list(
 	client: &Client,
-	user_id: &str,
+	user_id: &ObjectId,
 	repo_id: ObjectId,
 ) -> Result<(), RepoCreationError> {
 	let collection: mongodb::Collection<models::User> =
 		client.database(DB_NAME).collection(USER_COLLECTION);
 
-	let user_object_id = ObjectId::parse_str(user_id).map_err(|e| {
-		error!("Invalid ObjectId: {}", user_id);
-		RepoCreationError::InvalidObjectId(e)
-	})?;
-
-	let filter = doc! { "_id": user_object_id };
+	let filter = doc! { "_id": user_id };
 	let update = doc! { "$addToSet": { "relationships.repositories.data": { "id": repo_id, "type": "repositories" }} };
 
 	collection
@@ -139,7 +188,7 @@ pub(super) async fn do_create_submission(
 	redis_uri: &str,
 	ws_url: &str,
 	json: &CreateSubmissionRequest,
-) -> Result<CreateSubmissionResponse, SubmissionCreationError> {
+) -> Result<CreateSubmissionResponse, DbError> {
 	let repo_name = &json.repo_name;
 	let commit_sha = &json.commit_sha;
 	let ws_url = ws_url.to_string();
@@ -170,10 +219,10 @@ pub(super) async fn do_create_submission(
 }
 
 /// Fetch a repository from the database. Fail if the repository does not exist.
-async fn get_repo_from_db(
+pub(super) async fn get_repo_from_db(
 	client: &Client,
 	repo_name: &str,
-) -> Result<Repository, SubmissionCreationError> {
+) -> Result<Repository, DbError> {
 	let collection = client.database(DB_NAME).collection(REPO_COLLECTION);
 
 	let filter = doc! { "repo_name": repo_name };
@@ -189,14 +238,14 @@ async fn get_repo_from_db(
 		},
 		Ok(None) => {
 			error!("Repository `{}` not found in database", repo_name);
-			Err(SubmissionCreationError::NotFound(actix_web::error::ErrorNotFound(format!(
+			Err(DbError::NotFound(actix_web::error::ErrorNotFound(format!(
 				"Repository `{}` not found",
 				repo_name
 			))))
 		},
 		Err(e) => {
 			error!("Error fetching repository `{}` from database: {:?}", repo_name, e);
-			Err(SubmissionCreationError::DatabaseError(e))
+			Err(DbError::DatabaseError(e))
 		},
 	}
 }
@@ -208,7 +257,7 @@ async fn insert_submission_into_db(
 	commit_sha: String,
 	logstream_id: String,
 	logstream_url: String,
-) -> Result<(), SubmissionCreationError> {
+) -> Result<(), DbError> {
 	let collection = client.database(DB_NAME).collection(SUBMISSION_COLLECTION);
 
 	let submission = models::Submission {
@@ -228,5 +277,5 @@ async fn insert_submission_into_db(
 		.map(|_| {
 			info!("Successfully inserted submission for repository `{}` into database", repo_name)
 		})
-		.map_err(SubmissionCreationError::from)
+		.map_err(DbError::from)
 }

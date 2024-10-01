@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
+use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
-use crate::types::DocumentType;
+use crate::{types::DocumentType, ExpectedPracticeFrequency};
 
 /// A repository document. This is used to store information about the owner of the repository, the
 /// template used to create the repository, and the relationships between the repository and other
@@ -11,7 +14,9 @@ pub struct Repository {
 	pub repo_name: String,
 	pub repo_template: String,
 	pub tester_url: String,
-	pub relationships: Vec<Relationship>,
+	pub relationships: HashMap<String, Relationship>,
+	pub expected_practice_frequency: ExpectedPracticeFrequency,
+	pub is_reminder_enabled: bool,
 }
 
 /// A user document. This is used to store information about the user, the repositories they own,
@@ -26,8 +31,14 @@ pub struct User {
 /// A course document. This is used to store information about the course, the users enrolled in the
 /// course, and the relationships between the course and other documents.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Course {
+	#[serde(rename = "_id")]
+	pub id: ObjectId,
+	pub slug: String,
 	pub name: String,
+	pub tester_url: String,
+	#[serde(default)]
 	pub relationships: Vec<Relationship>,
 }
 
@@ -35,7 +46,7 @@ pub struct Course {
 /// document in the relationship.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Relationship {
-	pub id: String,
+	pub id: ObjectId,
 	pub r#type: DocumentType,
 }
 
