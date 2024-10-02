@@ -28,15 +28,25 @@ pub struct User {
 	pub relationships: Vec<Relationship>,
 }
 
+/// Information about the course author.
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq, Eq, Clone)]
+pub struct Author {
+	pub name: String,
+	pub url: String,
+}
+
 /// A course document. This is used to store information about the course, the users enrolled in the
 /// course, and the relationships between the course and other documents.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Course {
+	pub version: String,
 	#[serde(rename = "_id")]
 	pub id: ObjectId,
 	pub slug: String,
 	pub name: String,
+	pub title: String,
+	pub author: Author,
 	pub tester_url: String,
 	#[serde(default)]
 	pub relationships: Vec<Relationship>,

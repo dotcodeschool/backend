@@ -26,6 +26,9 @@ pub enum DbError {
 	#[error("Database operation failed: {0}")]
 	DatabaseError(#[from] mongodb::error::Error),
 
+	#[error("500 Internal Server Error: {0}")]
+	InternalServerError(String),
+
 	#[error("404 Not Found: {0}")]
 	NotFound(#[from] actix_web::error::Error),
 }

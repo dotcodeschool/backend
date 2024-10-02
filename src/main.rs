@@ -8,13 +8,22 @@ mod utils;
 use actix_web::{get, post, web, App, HttpServer, Responder};
 use dotenv::dotenv;
 use helpers::{
-	get_repository_success_response, handle_db_error, handle_repo_creation_error,
-	repository_creation_success_response, submission_creation_success_response,
+	fetch_course_success_response, get_repository_success_response, handle_db_error,
+	handle_repo_creation_error, repository_creation_success_response,
+	submission_creation_success_response,
 };
 use log::info;
 use mongodb::Client;
 use types::*;
-use utils::{do_create_repo, do_create_submission, get_repo_from_db};
+use utils::{do_create_repo, do_create_submission, fetch_course, get_repo_from_db};
+
+#[get("/course/{course_id}")]
+async fn get_course_v0(data: web::Data<AppState>, course_id: web::Path<String>) -> impl Responder {
+	match fetch_course(&data.client, &course_id).await {
+		Ok(course) => fetch_course_success_response(course),
+		Err(e) => handle_db_error(e),
+	}
+}
 
 /// Create a repository on the git server
 #[post("/repository")]
@@ -83,6 +92,7 @@ async fn main() -> std::io::Result<()> {
 				web::scope("/api/v0")
 					.service(create_repository_v0)
 					.service(create_submission_v0)
+					.service(get_course_v0)
 					.service(get_repository_v0),
 			)
 	})

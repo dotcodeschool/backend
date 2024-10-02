@@ -2,10 +2,15 @@ use actix_web::HttpResponse;
 
 use crate::{
 	errors::{DbError, RepoCreationError},
-	models::Repository,
+	models::{Course, Repository},
 	types::CreateSubmissionResponse,
 	CreateRepoResponse,
 };
+
+/// Constructs an HTTP response for a successful course data retrieval
+pub(super) fn fetch_course_success_response(course: Course) -> HttpResponse {
+	HttpResponse::Ok().json(course)
+}
 
 /// Constructs an HTTP response for a successful repository creation
 pub(super) fn repository_creation_success_response(
@@ -44,6 +49,8 @@ pub(super) fn handle_db_error(error: DbError) -> HttpResponse {
 	match error {
 		DbError::DatabaseError(_) =>
 			HttpResponse::InternalServerError().body("Failed to save submission to database"),
+		DbError::InternalServerError(_) =>
+			HttpResponse::InternalServerError().body("500 Internal Server Error"),
 		DbError::NotFound(_) => HttpResponse::NotFound().body("404 Not Found"),
 	}
 }

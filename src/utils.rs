@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::{error, info, warn};
 use mongodb::{
-	bson::{doc, oid::ObjectId},
+	bson::{self, doc, oid::ObjectId},
 	Client,
 };
 use rand::prelude::*;
@@ -10,7 +10,7 @@ use rand::prelude::*;
 use crate::{
 	constants::{DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, USER_COLLECTION},
 	errors::{DbError, RepoCreationError},
-	models::{self, Repository},
+	models::{self, Course, Repository},
 	types::{CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType},
 	ExpectedPracticeFrequency,
 };
@@ -27,6 +27,40 @@ pub(super) fn generate_repo_id() -> String {
 /// Generate a unique submission ID
 pub(super) fn generate_submission_id() -> String {
 	uuid::Uuid::new_v4().to_string()
+}
+
+/// Fetch course data from database
+pub(super) async fn fetch_course(client: &Client, id: &str) -> Result<Course, DbError> {
+	let collection = client.database(DB_NAME).collection("courses");
+	let id = ObjectId::parse_str(id).map_err(|e| {
+		error!("Invalid ObjectId: {}", id);
+		DbError::InternalServerError(e.to_string())
+	})?;
+
+	let filter = doc! { "_id": id };
+	let course = collection.find_one(filter).await?;
+
+	log::debug!("{:#?}", course);
+
+	let result = match course {
+		Some(course) => match bson::from_document::<Course>(course) {
+			Ok(course) => {
+				info!("Fetched course: {:?}", course);
+				Ok(course)
+			},
+			Err(e) => {
+				error!("Failed to deserialize course: {}", e);
+				Err(DbError::InternalServerError(format!(
+					"Failed to deserialize course with id {}",
+					id
+				)))
+			},
+		},
+		None => Err(DbError::InternalServerError(format!("Course with id {} not found", id))),
+	};
+
+	log::debug!("{:#?}", result);
+	result
 }
 
 /// Create a repository on the git server and insert it into the database
