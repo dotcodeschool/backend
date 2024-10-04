@@ -5,17 +5,19 @@ mod models;
 mod types;
 mod utils;
 
-use actix_web::{get, post, web, App, HttpServer, Responder};
+use actix_web::{get, post, put, web, App, HttpServer, Responder};
 use dotenv::dotenv;
 use helpers::{
 	fetch_course_success_response, get_repository_success_response, handle_db_error,
 	handle_repo_creation_error, repository_creation_success_response,
-	submission_creation_success_response,
+	repository_update_success_response, submission_creation_success_response,
 };
 use log::info;
 use mongodb::Client;
 use types::*;
-use utils::{do_create_repo, do_create_submission, fetch_course, get_repo_from_db};
+use utils::{
+	do_create_repo, do_create_submission, fetch_course, get_repo_from_db, update_repository,
+};
 
 #[get("/course/{course_id}")]
 async fn get_course_v0(data: web::Data<AppState>, course_id: web::Path<String>) -> impl Responder {
@@ -44,6 +46,19 @@ async fn get_repository_v0(
 ) -> impl Responder {
 	match get_repo_from_db(&data.client, repo_name.as_str()).await {
 		Ok(repository) => get_repository_success_response(repository),
+		Err(e) => handle_db_error(e),
+	}
+}
+
+/// Update a repository
+#[put("/repository/{repo_name}")]
+async fn update_repository_v0(
+	data: web::Data<AppState>,
+	repo_name: web::Path<String>,
+	json: web::Json<UpdateRepoRequest>,
+) -> impl Responder {
+	match update_repository(&data.client, repo_name.as_str(), &json).await {
+		Ok(updated_repo) => repository_update_success_response(updated_repo),
 		Err(e) => handle_db_error(e),
 	}
 }
@@ -93,7 +108,8 @@ async fn main() -> std::io::Result<()> {
 					.service(create_repository_v0)
 					.service(create_submission_v0)
 					.service(get_course_v0)
-					.service(get_repository_v0),
+					.service(get_repository_v0)
+					.service(update_repository_v0),
 			)
 	})
 	.bind(&bind_address)

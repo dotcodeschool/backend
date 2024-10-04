@@ -14,6 +14,7 @@ pub struct Repository {
 	pub repo_name: String,
 	pub repo_template: String,
 	pub tester_url: String,
+	pub test_ok: Option<bool>,
 	pub relationships: HashMap<String, Relationship>,
 	pub expected_practice_frequency: ExpectedPracticeFrequency,
 	pub is_reminder_enabled: bool,

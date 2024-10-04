@@ -11,7 +11,10 @@ use crate::{
 	constants::{DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, USER_COLLECTION},
 	errors::{DbError, RepoCreationError},
 	models::{self, Course, Repository},
-	types::{CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType},
+	types::{
+		CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType,
+		UpdateRepoRequest,
+	},
 	ExpectedPracticeFrequency,
 };
 
@@ -139,7 +142,8 @@ pub(super) async fn insert_repo_into_db(
 		repo_name: repo_name.to_string(),
 		repo_template: template.to_string(),
 		// TODO: Use the correct URL based on the template
-		tester_url: "https://github.com/dotcodeschool/rust-state-machine-tester".to_string(),
+		tester_url: format!("https://github.com/dotcodeschool/{}-tester", template),
+		test_ok: None,
 		relationships,
 		expected_practice_frequency,
 		is_reminder_enabled,
@@ -312,4 +316,60 @@ async fn insert_submission_into_db(
 			info!("Successfully inserted submission for repository `{}` into database", repo_name)
 		})
 		.map_err(DbError::from)
+}
+
+/// Update a repository in the database
+pub(super) async fn update_repository(
+	client: &Client,
+	repo_name: &str,
+	update_request: &UpdateRepoRequest,
+) -> Result<Repository, DbError> {
+	let collection = client.database(DB_NAME).collection::<Repository>(REPO_COLLECTION);
+
+	let filter = doc! { "repo_name": repo_name };
+	let mut update = doc! {};
+
+	if let Some(expected_practice_frequency) = &update_request.expected_practice_frequency {
+		update.insert(
+			"expected_practice_frequency",
+			bson::to_bson(expected_practice_frequency)
+				.map_err(|e| DbError::DatabaseError(mongodb::error::Error::from(e)))?,
+		);
+	}
+
+	if let Some(is_reminder_enabled) = update_request.is_reminder_enabled {
+		update.insert("is_reminder_enabled", is_reminder_enabled);
+	}
+
+	if let Some(test_ok) = update_request.test_ok {
+		update.insert("test_ok", test_ok);
+	}
+
+	if let Some(relationships) = &update_request.relationships {
+		update.insert(
+			"relationships",
+			bson::to_bson(relationships)
+				.map_err(|e| DbError::DatabaseError(mongodb::error::Error::from(e)))?,
+		);
+	}
+
+	let update_doc = doc! { "$set": update };
+
+	info!("Updating repository `{}` in database", repo_name);
+
+	let result = collection.find_one_and_update(filter, update_doc).await?;
+
+	match result {
+		Some(updated_repo) => {
+			info!("Successfully updated repository `{}` in database", repo_name);
+			Ok(updated_repo)
+		},
+		None => {
+			error!("Repository `{}` not found in database", repo_name);
+			Err(DbError::NotFound(actix_web::error::ErrorNotFound(format!(
+				"Repository `{}` not found",
+				repo_name
+			))))
+		},
+	}
 }

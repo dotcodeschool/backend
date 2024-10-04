@@ -3,8 +3,7 @@ use actix_web::HttpResponse;
 use crate::{
 	errors::{DbError, RepoCreationError},
 	models::{Course, Repository},
-	types::CreateSubmissionResponse,
-	CreateRepoResponse,
+	types::{CreateRepoResponse, CreateSubmissionResponse, UpdateRepoResponse},
 };
 
 /// Constructs an HTTP response for a successful course data retrieval
@@ -58,4 +57,17 @@ pub(super) fn handle_db_error(error: DbError) -> HttpResponse {
 /// Constructs an HTTP response for successful retrieval of repository
 pub(super) fn get_repository_success_response(repository: Repository) -> HttpResponse {
 	HttpResponse::Ok().json(repository)
+}
+
+/// Constructs an HTTP response for a successful repository update
+pub(super) fn repository_update_success_response(repository: Repository) -> HttpResponse {
+	HttpResponse::Ok().json(UpdateRepoResponse {
+		repo_name: repository.repo_name,
+		repo_template: repository.repo_template,
+		tester_url: repository.tester_url,
+		test_ok: repository.test_ok,
+		relationships: repository.relationships,
+		expected_practice_frequency: repository.expected_practice_frequency,
+		is_reminder_enabled: repository.is_reminder_enabled,
+	})
 }
