@@ -23,6 +23,15 @@ pub enum ExpectedPracticeFrequency {
 	OnceAMonth,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestStatus {
+	Pending,
+	Running,
+	Passed,
+	Failed,
+}
+
 #[derive(serde::Deserialize)]
 pub struct CreateRepoRequest {
 	pub repo_template: String,
@@ -68,4 +77,9 @@ pub struct UpdateRepoResponse {
 	pub relationships: HashMap<String, Relationship>,
 	pub expected_practice_frequency: ExpectedPracticeFrequency,
 	pub is_reminder_enabled: bool,
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateSubmissionRequest {
+	pub test_status: HashMap<String, TestStatus>,
 }

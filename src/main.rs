@@ -11,12 +11,14 @@ use helpers::{
 	fetch_course_success_response, get_repository_success_response, handle_db_error,
 	handle_repo_creation_error, repository_creation_success_response,
 	repository_update_success_response, submission_creation_success_response,
+	submission_update_success_response,
 };
 use log::info;
 use mongodb::Client;
 use types::*;
 use utils::{
 	do_create_repo, do_create_submission, fetch_course, get_repo_from_db, update_repository,
+	update_submission,
 };
 
 #[get("/course/{course_id}")]
@@ -74,6 +76,18 @@ async fn create_submission_v0(
 	}
 }
 
+#[put("/submission/{logstream_id}")]
+async fn update_submission_v0(
+	data: web::Data<AppState>,
+	logstream_id: web::Path<String>,
+	json: web::Json<UpdateSubmissionRequest>,
+) -> impl Responder {
+	match update_submission(&data.client, logstream_id.as_str(), &json).await {
+		Ok(submission_response) => submission_update_success_response(submission_response),
+		Err(e) => handle_db_error(e),
+	}
+}
+
 pub struct AppState {
 	client: Client,
 	redis_uri: String,
@@ -109,7 +123,8 @@ async fn main() -> std::io::Result<()> {
 					.service(create_submission_v0)
 					.service(get_course_v0)
 					.service(get_repository_v0)
-					.service(update_repository_v0),
+					.service(update_repository_v0)
+					.service(update_submission_v0),
 			)
 	})
 	.bind(&bind_address)

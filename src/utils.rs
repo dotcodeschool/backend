@@ -10,12 +10,12 @@ use rand::prelude::*;
 use crate::{
 	constants::{DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, USER_COLLECTION},
 	errors::{DbError, RepoCreationError},
-	models::{self, Course, Repository},
+	models::{self, Course, Repository, Submission},
 	types::{
 		CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType,
 		UpdateRepoRequest,
 	},
-	ExpectedPracticeFrequency,
+	ExpectedPracticeFrequency, UpdateSubmissionRequest,
 };
 
 /// Generate a repository ID
@@ -369,6 +369,44 @@ pub(super) async fn update_repository(
 			Err(DbError::NotFound(actix_web::error::ErrorNotFound(format!(
 				"Repository `{}` not found",
 				repo_name
+			))))
+		},
+	}
+}
+
+pub(super) async fn update_submission(
+	client: &Client,
+	logstream_id: &str,
+	update_request: &UpdateSubmissionRequest,
+) -> Result<Submission, DbError> {
+	let collection = client.database(DB_NAME).collection::<Submission>(SUBMISSION_COLLECTION);
+
+	let filter = doc! { "logstream_id": logstream_id };
+
+	let mut update = doc! {};
+
+	update.insert(
+		"test_status",
+		bson::to_bson(&update_request.test_status)
+			.map_err(|e| DbError::DatabaseError(mongodb::error::Error::from(e)))?,
+	);
+
+	let update_doc = doc! { "$set": update };
+
+	info!("Updating test_status for logstream `{}` in database", logstream_id);
+
+	let result = collection.find_one_and_update(filter, update_doc).await?;
+
+	match result {
+		Some(updated_submission) => {
+			info!("Successfully updated test_status for logstream `{}` in database", logstream_id);
+			Ok(updated_submission)
+		},
+		None => {
+			error!("logstream_id `{}` not found in database", logstream_id);
+			Err(DbError::NotFound(actix_web::error::ErrorNotFound(format!(
+				"logstream_id `{}` not found",
+				logstream_id
 			))))
 		},
 	}
