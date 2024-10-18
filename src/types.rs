@@ -65,6 +65,7 @@ pub struct UpdateRepoRequest {
 	pub expected_practice_frequency: Option<ExpectedPracticeFrequency>,
 	pub is_reminder_enabled: Option<bool>,
 	pub test_ok: Option<bool>,
+	pub tests_queue: Option<Vec<String>>,
 	pub relationships: Option<HashMap<String, Relationship>>,
 }
 

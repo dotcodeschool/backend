@@ -144,6 +144,7 @@ pub(super) async fn insert_repo_into_db(
 		// TODO: Use the correct URL based on the template
 		tester_url: format!("https://github.com/dotcodeschool/{}-tester", template),
 		test_ok: None,
+		tests_queue: None,
 		relationships,
 		expected_practice_frequency,
 		is_reminder_enabled,
@@ -344,6 +345,14 @@ pub(super) async fn update_repository(
 	if let Some(test_ok) = update_request.test_ok {
 		update.insert("test_ok", test_ok);
 	}
+	
+	if let Some(tests_queue) = &update_request.tests_queue {
+        update.insert(
+            "tests_queue",
+            bson::to_bson(tests_queue)
+                .map_err(|e| DbError::DatabaseError(mongodb::error::Error::from(e)))?,
+        );
+    }
 
 	if let Some(relationships) = &update_request.relationships {
 		update.insert(
