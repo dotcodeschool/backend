@@ -2,7 +2,7 @@ use actix_web::HttpResponse;
 
 use crate::{
 	errors::{DbError, RepoCreationError},
-	models::{Course, Repository, Submission},
+	models::{Course, Repository, Submission, TestLogEntry},
 	types::{CreateRepoResponse, CreateSubmissionResponse, UpdateRepoResponse},
 };
 
@@ -75,4 +75,11 @@ pub(super) fn repository_update_success_response(repository: Repository) -> Http
 /// Constructs an HTTP response for a successful submission update
 pub(super) fn submission_update_success_response(submission: Submission) -> HttpResponse {
 	HttpResponse::Ok().json(submission)
+}
+
+/// Constructs an HTTP response for a successful test log entry creation
+pub(super) fn test_log_entry_creation_success_response(
+	test_log_entry: TestLogEntry,
+) -> HttpResponse {
+	HttpResponse::Ok().json(test_log_entry)
 }

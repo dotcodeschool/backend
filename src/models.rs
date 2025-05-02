@@ -71,3 +71,15 @@ pub struct Submission {
 	pub relationships: Vec<Relationship>,
 	pub created_at: chrono::DateTime<Utc>,
 }
+
+/// A test log entry. This is used to store information about a test run.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TestLogEntry {
+	pub test_slug: String,
+	pub passed: bool,
+	pub timestamp: chrono::DateTime<Utc>,
+	pub section_name: String,
+	pub lesson_name: String,
+	pub test_name: String,
+	pub repo_name: String,
+}

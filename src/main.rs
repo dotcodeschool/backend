@@ -11,20 +11,32 @@ use helpers::{
 	fetch_course_success_response, get_repository_success_response, handle_db_error,
 	handle_repo_creation_error, repository_creation_success_response,
 	repository_update_success_response, submission_creation_success_response,
-	submission_update_success_response,
+	submission_update_success_response, test_log_entry_creation_success_response,
 };
 use log::info;
 use mongodb::Client;
 use types::*;
 use utils::{
-	do_create_repo, do_create_submission, fetch_course, get_repo_from_db, update_repository,
-	update_submission,
+	add_test_log_entry, do_create_repo, do_create_submission, fetch_course, get_repo_from_db,
+	update_repository, update_submission,
 };
 
 #[get("/course/{course_id}")]
 async fn get_course_v0(data: web::Data<AppState>, course_id: web::Path<String>) -> impl Responder {
 	match fetch_course(&data.client, &course_id).await {
 		Ok(course) => fetch_course_success_response(course),
+		Err(e) => handle_db_error(e),
+	}
+}
+
+/// Add `TestLogEntry` to mongodb
+#[post("/test-log")]
+async fn add_test_log_entry_v0(
+	data: web::Data<AppState>,
+	json: web::Json<models::TestLogEntry>,
+) -> impl Responder {
+	match add_test_log_entry(&data.client, &json).await {
+		Ok(_) => test_log_entry_creation_success_response(json.into_inner()),
 		Err(e) => handle_db_error(e),
 	}
 }
@@ -119,6 +131,7 @@ async fn main() -> std::io::Result<()> {
 			}))
 			.service(
 				web::scope("/api/v0")
+					.service(add_test_log_entry_v0)
 					.service(create_repository_v0)
 					.service(create_submission_v0)
 					.service(get_course_v0)

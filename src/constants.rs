@@ -8,3 +8,5 @@ pub(super) const REPO_COLLECTION: &str = "repositories";
 pub(super) const SUBMISSION_COLLECTION: &str = "submissions";
 /// The name of the collection that stores the user documents
 pub(super) const USER_COLLECTION: &str = "users";
+/// The name of the collection that stores the test log entries
+pub(super) const TEST_LOG_COLLECTION: &str = "testLogs";

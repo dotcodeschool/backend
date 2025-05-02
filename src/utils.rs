@@ -8,9 +8,12 @@ use mongodb::{
 use rand::prelude::*;
 
 use crate::{
-	constants::{DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, USER_COLLECTION},
+	constants::{
+		DB_NAME, GIT_SERVER_URL, REPO_COLLECTION, SUBMISSION_COLLECTION, TEST_LOG_COLLECTION,
+		USER_COLLECTION,
+	},
 	errors::{DbError, RepoCreationError},
-	models::{self, Course, Repository, Submission},
+	models::{self, Course, Repository, Submission, TestLogEntry},
 	types::{
 		CreateRepoRequest, CreateSubmissionRequest, CreateSubmissionResponse, DocumentType,
 		UpdateRepoRequest,
@@ -345,14 +348,14 @@ pub(super) async fn update_repository(
 	if let Some(test_ok) = update_request.test_ok {
 		update.insert("test_ok", test_ok);
 	}
-	
+
 	if let Some(tests_queue) = &update_request.tests_queue {
-        update.insert(
-            "tests_queue",
-            bson::to_bson(tests_queue)
-                .map_err(|e| DbError::DatabaseError(mongodb::error::Error::from(e)))?,
-        );
-    }
+		update.insert(
+			"tests_queue",
+			bson::to_bson(tests_queue)
+				.map_err(|e| DbError::DatabaseError(mongodb::error::Error::from(e)))?,
+		);
+	}
 
 	if let Some(relationships) = &update_request.relationships {
 		update.insert(
@@ -419,4 +422,22 @@ pub(super) async fn update_submission(
 			))))
 		},
 	}
+}
+
+/// Adds a new test log entry to the database.
+pub(super) async fn add_test_log_entry(
+	client: &Client,
+	test_log: &models::TestLogEntry,
+) -> Result<(), DbError> {
+	let collection = client.database(DB_NAME).collection::<TestLogEntry>(TEST_LOG_COLLECTION);
+
+	// Insert the test log entry into the database
+	collection.insert_one(test_log.clone()).await?;
+
+	info!(
+		"Successfully added test log entry [`{}`] `{}` for repo `{}` in database",
+		test_log.timestamp, test_log.test_slug, test_log.repo_name
+	);
+
+	Ok(())
 }
