@@ -80,6 +80,7 @@ pub struct TestLogEntry {
 	pub timestamp: chrono::DateTime<Utc>,
 	pub section_name: String,
 	pub lesson_name: String,
+	pub lesson_slug: String,
 	pub test_name: String,
 	pub repo_name: String,
 }
