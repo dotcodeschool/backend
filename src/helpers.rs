@@ -83,3 +83,8 @@ pub(super) fn test_log_entry_creation_success_response(
 ) -> HttpResponse {
 	HttpResponse::Ok().json(test_log_entry)
 }
+
+/// Constructs an HTTP response for successful retrieval of latest test logs
+pub(super) fn latest_test_logs_success_response(test_logs: Vec<TestLogEntry>) -> HttpResponse {
+	HttpResponse::Ok().json(test_logs)
+}

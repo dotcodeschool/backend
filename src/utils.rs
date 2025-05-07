@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use futures_util::StreamExt;
 use log::{error, info, warn};
 use mongodb::{
 	bson::{self, doc, oid::ObjectId},
+	options::FindOptions,
 	Client,
 };
 use rand::prelude::*;
@@ -440,4 +442,56 @@ pub(super) async fn add_test_log_entry(
 	);
 
 	Ok(())
+}
+
+/// Fetches the latest test log entries for a repository.
+/// This function queries the testLogs collection, filters by repo_name,
+/// and returns the latest test result for each test_slug.
+pub(super) async fn get_latest_test_logs(
+	client: &Client,
+	repo_name: &str,
+) -> Result<Vec<TestLogEntry>, DbError> {
+	let collection = client.database(DB_NAME).collection::<TestLogEntry>(TEST_LOG_COLLECTION);
+
+	info!("Fetching latest test logs for repository `{}`", repo_name);
+
+	// First, get all test logs for this repository
+	let filter = doc! { "repo_name": repo_name };
+
+	// Sort by timestamp in descending order to get the latest entries first
+	let options = FindOptions::builder().sort(doc! { "timestamp": -1 }).build();
+
+	// Apply the options to the find operation
+	let mut cursor = collection.find(filter).with_options(options).await?;
+
+	// Use a HashMap to store the latest entry for each test_slug
+	let mut latest_entries = HashMap::new();
+
+	while let Some(result) = cursor.next().await {
+		match result {
+			Ok(entry) => {
+				// Only insert if this test_slug doesn't exist in the map yet
+				// Since we're sorted by timestamp desc, the first entry we see
+				// for each test_slug is the latest one
+				if !latest_entries.contains_key(&entry.test_slug) {
+					latest_entries.insert(entry.test_slug.clone(), entry);
+				}
+			},
+			Err(e) => {
+				error!("Error fetching test log entry: {:?}", e);
+				return Err(DbError::DatabaseError(e));
+			},
+		}
+	}
+
+	// Convert the HashMap values to a Vec
+	let latest_logs: Vec<TestLogEntry> = latest_entries.into_values().collect();
+
+	info!(
+		"Successfully fetched {} latest test logs for repository `{}`",
+		latest_logs.len(),
+		repo_name
+	);
+
+	Ok(latest_logs)
 }

@@ -9,16 +9,17 @@ use actix_web::{get, post, put, web, App, HttpServer, Responder};
 use dotenv::dotenv;
 use helpers::{
 	fetch_course_success_response, get_repository_success_response, handle_db_error,
-	handle_repo_creation_error, repository_creation_success_response,
-	repository_update_success_response, submission_creation_success_response,
-	submission_update_success_response, test_log_entry_creation_success_response,
+	handle_repo_creation_error, latest_test_logs_success_response,
+	repository_creation_success_response, repository_update_success_response,
+	submission_creation_success_response, submission_update_success_response,
+	test_log_entry_creation_success_response,
 };
 use log::info;
 use mongodb::Client;
 use types::*;
 use utils::{
-	add_test_log_entry, do_create_repo, do_create_submission, fetch_course, get_repo_from_db,
-	update_repository, update_submission,
+	add_test_log_entry, do_create_repo, do_create_submission, fetch_course, get_latest_test_logs,
+	get_repo_from_db, update_repository, update_submission,
 };
 
 #[get("/course/{course_id}")]
@@ -60,6 +61,18 @@ async fn get_repository_v0(
 ) -> impl Responder {
 	match get_repo_from_db(&data.client, repo_name.as_str()).await {
 		Ok(repository) => get_repository_success_response(repository),
+		Err(e) => handle_db_error(e),
+	}
+}
+
+/// Get the latest test logs for a repository
+#[get("/test-logs/{repo_name}")]
+async fn get_latest_test_logs_v0(
+	data: web::Data<AppState>,
+	repo_name: web::Path<String>,
+) -> impl Responder {
+	match get_latest_test_logs(&data.client, repo_name.as_str()).await {
+		Ok(test_logs) => latest_test_logs_success_response(test_logs),
 		Err(e) => handle_db_error(e),
 	}
 }
@@ -135,6 +148,7 @@ async fn main() -> std::io::Result<()> {
 					.service(create_repository_v0)
 					.service(create_submission_v0)
 					.service(get_course_v0)
+					.service(get_latest_test_logs_v0)
 					.service(get_repository_v0)
 					.service(update_repository_v0)
 					.service(update_submission_v0),
