@@ -1,0 +1,38 @@
+# Global options
+{
+    # Enable local development mode
+    local_certs
+    # Disable automatic HTTPS for local development
+    auto_https off
+}
+
+# Backend configuration
+backend:3000 {
+    # Enable compression
+    encode gzip
+
+    # Security headers
+    header {
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        # Prevent clickjacking
+        X-Frame-Options "DENY"
+        # Enable XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Remove server header
+        -Server
+    }
+
+    # Reverse proxy to the backend
+    reverse_proxy backend:8080 {
+        # Health check
+        health_uri /health
+        health_interval 30s
+    }
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}

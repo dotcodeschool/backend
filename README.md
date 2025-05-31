@@ -5,6 +5,7 @@ This is the backend service for Dot Code School, a platform for interactive codi
 ## Overview
 
 The Dot Code School backend provides a REST API that handles:
+
 - Repository creation and management for students
 - Test submissions and results tracking
 - Course data retrieval
@@ -62,6 +63,7 @@ The server will start on the port specified in your `.env` file (default: 8080).
 ### Repositories
 
 - `POST /api/v0/repository` - Create a new repository
+
   ```json
   {
     "repo_template": "rust-state-machine",
@@ -86,6 +88,7 @@ The server will start on the port specified in your `.env` file (default: 8080).
 ### Test Logs
 
 - `POST /api/v0/test-log` - Add a new test log entry
+
   ```json
   {
     "test_slug": "balances-exists",
@@ -104,6 +107,7 @@ The server will start on the port specified in your `.env` file (default: 8080).
 ### Submissions
 
 - `POST /api/v0/submission` - Create a new submission
+
   ```json
   {
     "repo_name": "36f6b5be71628a93",
@@ -169,11 +173,13 @@ To contribute to this project:
 3. Make your changes
 4. Run tests to ensure everything works
 5. Commit your changes following the Commitizen format:
+
    ```
    feat(api): add endpoint to fetch latest test logs by repository
-   
+
    This commit adds a new API endpoint that returns only the latest test results.
    ```
+
 6. Push to your branch
 7. Open a Pull Request
 

@@ -21,6 +21,15 @@ use utils::{
 	add_test_log_entry, do_create_repo, do_create_submission, fetch_course, get_latest_test_logs,
 	get_repo_from_db, update_repository, update_submission,
 };
+use serde_json;
+
+#[get("/health")]
+async fn health_check() -> impl Responder {
+	actix_web::HttpResponse::Ok().json(serde_json::json!({
+		"status": "ok",
+		"service": "backend"
+	}))
+}
 
 #[get("/course/{course_id}")]
 async fn get_course_v0(data: web::Data<AppState>, course_id: web::Path<String>) -> impl Responder {
@@ -142,6 +151,7 @@ async fn main() -> std::io::Result<()> {
 				redis_uri: redis_uri.clone(),
 				ws_url: ws_url.clone(),
 			}))
+			.service(health_check)
 			.service(
 				web::scope("/api/v0")
 					.service(add_test_log_entry_v0)
