@@ -1,3 +1,12 @@
+> [!CAUTION]
+> **This repository has been archived and is no longer maintained.**
+> 
+> This Actix-web backend was the central service managing student repositories, test submissions, and test results. Dot Code School has moved to a fully static architecture — courses are ingested from gitorial repos at build time and deployed via Vercel, with no backend service.
+> 
+> See [dotcodeschool/frontend](https://github.com/dotcodeschool/frontend) for the current platform.
+
+---
+
 # Dot Code School Backend
 
 This is the backend service for Dot Code School, a platform for interactive coding education. It manages repositories, test submissions, and test results for students working through coding courses.
